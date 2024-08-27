@@ -347,7 +347,10 @@ export class CodeSnippetsCodebaseIndex implements CodebaseIndex {
     }
   }
 
-  static async getAllPathsAndSignatures(batchSize: number = 1000): AsyncGenerator<{ path: string; signatures: string[] }> {
+  static async *getAllPathsAndSignatures(
+    workspaceDir: string,
+    batchSize: number = 1000,
+  ): AsyncGenerator<{ path: string; signatures: string[] }> {
     const db = await SqliteDb.get();
     await CodeSnippetsCodebaseIndex._createTables(db);
 
@@ -358,9 +361,10 @@ export class CodeSnippetsCodebaseIndex implements CodebaseIndex {
       const rows = await db.all(
         `SELECT path, signature
          FROM code_snippets
+         WHERE path LIKE ?
          ORDER BY path
          LIMIT ? OFFSET ?`,
-        [batchSize, offset]
+        [`${workspaceDir}%`, batchSize, offset],
       );
 
       if (rows.length === 0) {
@@ -369,6 +373,7 @@ export class CodeSnippetsCodebaseIndex implements CodebaseIndex {
       }
 
       const groupedByPath: { [path: string]: string[] } = {};
+
       for (const row of rows) {
         if (!groupedByPath[row.path]) {
           groupedByPath[row.path] = [];
